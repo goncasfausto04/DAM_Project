@@ -9,13 +9,17 @@ import {
   Image,
 } from "react-native";
 
-export default function Login() {
+export default function Login({navigation}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
     if (email && password) {
-      Alert.alert("Login Success", "You are now logged in!");
+      if (email === "admin") {
+        navigation.navigate("AdminHome");
+      } else {
+        navigation.navigate("TeacherHome");
+      }
     } else {
       Alert.alert("Error", "Please enter both email and password");
     }
