@@ -8,17 +8,45 @@ import {
   Alert,
   Image,
 } from "react-native";
+import { auth, db } from "./firebase"; // Import Firebase auth and Firestore
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
-export default function Login({navigation}) {
+export default function Login({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (email && password) {
-      if (email === "admin") {
-        navigation.navigate("AdminHome");
-      } else {
-        navigation.navigate("TeacherHome");
+      try {
+        // Authenticate user with email and password
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+        const user = userCredential.user;
+
+        // Fetch the role from Firestore based on UID
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const role = userData.role; // 'role' is stored in Firestore
+
+          if (role === "admin") {
+            navigation.navigate("AdminHome");
+          } else if (role === "teacher") {
+            navigation.navigate("TeacherHome");
+          } else {
+            Alert.alert("Error", "No valid role found.");
+          }
+        } else {
+          Alert.alert("Error", "User role not found in the database.");
+        }
+      } catch (error) {
+        console.error(error);
+        Alert.alert("Login Error", error.message);
       }
     } else {
       Alert.alert("Error", "Please enter both email and password");
@@ -27,15 +55,9 @@ export default function Login({navigation}) {
 
   return (
     <View style={styles.container}>
-      {/* Noodle logo (use an image or text) */}
-      <Image
-        source={require("./images/logo.png")} // Access the local image from the 'images' folder
-        style={styles.logo}
-      />
-
+      <Image source={require("./images/logo.png")} style={styles.logo} />
       <Text style={styles.title}>Noodle</Text>
 
-      {/* Email Input Field */}
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -45,7 +67,6 @@ export default function Login({navigation}) {
         autoCapitalize="none"
       />
 
-      {/* Password Input Field */}
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -54,12 +75,10 @@ export default function Login({navigation}) {
         secureTextEntry
       />
 
-      {/* Login Button */}
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
 
-      {/* Forgot Password Link */}
       <TouchableOpacity onPress={() => alert("Forgot password?")}>
         <Text style={styles.forgot}>Forgot Password?</Text>
       </TouchableOpacity>
@@ -72,37 +91,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F9F9F9", // Light background
+    backgroundColor: "#F9F9F9",
     padding: 20,
   },
   logo: {
     width: 100,
     height: 100,
     marginBottom: 20,
-    resizeMode: "contain", // Ensure logo fits in the space without distortion
+    resizeMode: "contain",
   },
   title: {
     fontSize: 36,
     fontWeight: "bold",
-    color: "#4CAF50", // Noodle brand color (green)
+    color: "#4CAF50",
     marginBottom: 40,
   },
   input: {
     width: "100%",
     height: 50,
-    borderColor: "#E0E0E0", // Light border color for modern look
+    borderColor: "#E0E0E0",
     borderWidth: 1,
-    borderRadius: 25, // Rounded corners for input fields
+    borderRadius: 25,
     paddingHorizontal: 20,
     marginBottom: 15,
     fontSize: 16,
-    backgroundColor: "#FFF", // White background for inputs
+    backgroundColor: "#FFF",
   },
   button: {
     width: "100%",
-    backgroundColor: "#4CAF50", // Green color for the button
+    backgroundColor: "#4CAF50",
     padding: 15,
-    borderRadius: 25, // Rounded button corners
+    borderRadius: 25,
     alignItems: "center",
     marginTop: 10,
   },
