@@ -5,21 +5,24 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Image,
 } from "react-native";
-import { auth, db } from "./firebase"; // Import Firebase auth and Firestore
+import { auth, db } from "./firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function Login({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [hasError, setHasError] = useState(false);
 
   const handleLogin = async () => {
     if (email && password) {
       try {
-        // Authenticate user with email and password
+        setErrorMessage("");
+        setHasError(false);
+
         const userCredential = await signInWithEmailAndPassword(
           auth,
           email,
@@ -27,29 +30,37 @@ export default function Login({ navigation }) {
         );
         const user = userCredential.user;
 
-        // Fetch the role from Firestore based on UID
+        console.log("User logged in:", user.uid);
+
         const userDoc = await getDoc(doc(db, "users", user.uid));
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          const role = userData.role; // 'role' is stored in Firestore
+          const role = userData.role;
+
+          console.log("User role:", role);
 
           if (role === "admin") {
             navigation.navigate("AdminHome");
           } else if (role === "teacher") {
             navigation.navigate("TeacherHome");
           } else {
-            Alert.alert("Error", "No valid role found.");
+            // if role is invalid
+            setErrorMessage("Email and password don’t match.");
+            setHasError(true);
           }
         } else {
-          Alert.alert("Error", "User role not found in the database.");
+          setErrorMessage("Email and password don’t match.");
+          setHasError(true);
         }
       } catch (error) {
-        console.error(error);
-        Alert.alert("Login Error", error.message);
+        console.error("Login error:", error.code);
+        setErrorMessage("Email and password don’t match.");
+        setHasError(true);
       }
     } else {
-      Alert.alert("Error", "Please enter both email and password");
+      setErrorMessage("Email and password don’t match.");
+      setHasError(true);
     }
   };
 
@@ -58,8 +69,12 @@ export default function Login({ navigation }) {
       <Image source={require("./images/logo.png")} style={styles.logo} />
       <Text style={styles.title}>Noodle</Text>
 
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      ) : null}
+
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasError && styles.inputError]}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
@@ -68,7 +83,7 @@ export default function Login({ navigation }) {
       />
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasError && styles.inputError]}
         placeholder="Password"
         value={password}
         onChangeText={setPassword}
@@ -79,7 +94,7 @@ export default function Login({ navigation }) {
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => alert("Forgot password?")}>
+      <TouchableOpacity onPress={() => console.log("Forgot password tapped")}>
         <Text style={styles.forgot}>Forgot Password?</Text>
       </TouchableOpacity>
     </View>
@@ -117,6 +132,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#FFF",
   },
+  inputError: {
+    borderColor: "red",
+  },
   button: {
     width: "100%",
     backgroundColor: "#4CAF50",
@@ -134,5 +152,10 @@ const styles = StyleSheet.create({
     color: "#4CAF50",
     marginTop: 15,
     fontSize: 14,
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 10,
+    textAlign: "center",
   },
 });

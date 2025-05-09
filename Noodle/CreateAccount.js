@@ -5,45 +5,66 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from "react-native";
+import { auth, db } from "./firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
-export default function CreateAccount() {
+export default function CreateAccount({ navigation }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Handle form submission
-  const handleCreateAccount = () => {
-    // Validate fields
+  const handleCreateAccount = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields.");
+      setErrorMessage("Please fill in all fields.");
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match.");
+      setErrorMessage("Passwords do not match.");
       return;
     }
 
-    // Here you would typically send the data to a backend for account creation
-    Alert.alert(
-      "Account Created",
-      "Teacher account has been successfully created."
-    );
-    // Clear form
-    setName("");
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
+    try {
+      setErrorMessage("");
+
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+      console.log("Account created with UID:", user.uid);
+
+      // Create user doc in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        fullName: name,
+        email: email,
+        role: "teacher",
+      });
+
+      console.log("User doc created in Firestore");
+
+      // Navigate back or to login
+      navigation.goBack(); // or navigation.navigate("Login");
+    } catch (error) {
+      console.error("Account creation error:", error.code);
+      setErrorMessage("Failed to create account. Try again.");
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Teacher Account</Text>
 
-      {/* Name Input */}
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      ) : null}
+
       <TextInput
         style={styles.input}
         placeholder="Full Name"
@@ -51,7 +72,6 @@ export default function CreateAccount() {
         onChangeText={setName}
       />
 
-      {/* Email Input */}
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -61,7 +81,6 @@ export default function CreateAccount() {
         autoCapitalize="none"
       />
 
-      {/* Password Input */}
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -70,7 +89,6 @@ export default function CreateAccount() {
         secureTextEntry
       />
 
-      {/* Confirm Password Input */}
       <TextInput
         style={styles.input}
         placeholder="Confirm Password"
@@ -79,7 +97,6 @@ export default function CreateAccount() {
         secureTextEntry
       />
 
-      {/* Create Account Button */}
       <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
         <Text style={styles.buttonText}>Create Account</Text>
       </TouchableOpacity>
@@ -93,7 +110,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#F9F9F9", // Light background
+    backgroundColor: "#F9F9F9",
   },
   title: {
     fontSize: 24,
@@ -113,7 +130,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: "100%",
-    backgroundColor: "#4CAF50", // Green button
+    backgroundColor: "#4CAF50",
     padding: 15,
     borderRadius: 25,
     alignItems: "center",
@@ -123,5 +140,10 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 10,
+    textAlign: "center",
   },
 });
