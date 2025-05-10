@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,28 +6,65 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "./firebase"; // import your firebase config
+import { getAuth } from "firebase/auth"; // Import Firebase Authentication
 
 export default function TeacherHome({ navigation }) {
-  // Fake class data for now
-  const classes = [
-    { id: "1", subject: "Math", date: "May 10, 2025", time: "10:00 AM" },
-    { id: "2", subject: "History", date: "May 11, 2025", time: "2:00 PM" },
-    { id: "3", subject: "Science", date: "May 12, 2025", time: "9:00 AM" },
-  ];
+  const [classes, setClasses] = useState([]);
+  const [teacherId, setTeacherId] = useState(null);
+
+  useEffect(() => {
+    const auth = getAuth(); // Initialize Firebase Authentication
+    const user = auth.currentUser; // Get the currently logged-in user
+    if (user) {
+      setTeacherId(user.uid); // Set the teacherId to the current user's ID
+      fetchClasses(user.uid); // Fetch classes for the logged-in teacher
+    } else {
+      console.error("No user is logged in.");
+    }
+  }, []);
+
+  const fetchClasses = async (teacherId) => {
+    try {
+      // Check if teacherId is set before querying
+      if (!teacherId) {
+        console.error("No teacher ID available.");
+        return;
+      }
+
+      const q = query(
+        collection(db, "classes"),
+        where("teacherId", "==", teacherId)
+      );
+      console.log("Firestore Query:", q); // Log the query
+
+      const querySnapshot = await getDocs(q);
+      const classesList = [];
+
+      querySnapshot.forEach((doc) => {
+        console.log("Fetched Class:", doc.data()); // Log each fetched class
+        classesList.push({ id: doc.id, ...doc.data() });
+      });
+
+      console.log("Fetched Classes:", classesList);
+      setClasses(classesList); // Set the classes state
+    } catch (error) {
+      console.error("Error fetching classes: ", error);
+    }
+  };
 
   const renderItem = ({ item }) => (
     <View style={styles.classItem}>
       <Text style={styles.classTitle}>📚 {item.subject} Class</Text>
       <Text style={styles.classInfo}>
-        🗓️ {item.date} - {item.time}
+        🗓️ {item.dates.join(", ")} - ⏰ {item.times.join(", ")}
       </Text>
       <TouchableOpacity
         style={styles.button}
-        onPress={() =>
-          navigation.navigate("MarkAttendance", { classId: item.id })
-        }
+        onPress={() => navigation.navigate("Class", { classId: item.id })}
       >
-        <Text style={styles.buttonText}>Mark Attendance</Text>
+        <Text style={styles.buttonText}>Enter Class</Text>
       </TouchableOpacity>
     </View>
   );
@@ -35,12 +72,16 @@ export default function TeacherHome({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome, Teacher 👋</Text>
-      <FlatList
-        data={classes}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-      />
+      {classes.length === 0 ? (
+        <Text>No classes assigned yet.</Text>
+      ) : (
+        <FlatList
+          data={classes}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+        />
+      )}
     </View>
   );
 }

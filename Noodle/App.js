@@ -7,6 +7,7 @@ import AdminHome from "./AdminHome";
 import TeacherHome from "./TeacherHome";
 import CreateClass from "./CreateClass";
 import CreateAccount from "./CreateAccount";
+import Class from "./Class";
 
 const Stack = createStackNavigator();
 
@@ -23,6 +24,7 @@ export default function App() {
         <Stack.Screen name="TeacherHome" component={TeacherHome} />
         <Stack.Screen name="CreateClass" component={CreateClass} />
         <Stack.Screen name="CreateAccount" component={CreateAccount} />
+        <Stack.Screen name="Class" component={Class} />
       </Stack.Navigator>
     </NavigationContainer>
   );
