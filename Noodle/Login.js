@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,15 @@ export default function Login({ navigation }) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    // Ensure Firebase Auth is initialized before login attempt
+    if (auth) {
+      console.log("Firebase Auth initialized successfully.");
+    } else {
+      console.log("Firebase Auth not ready.");
+    }
+  }, [auth]);
 
   const handleLogin = async () => {
     if (email && password) {
@@ -45,7 +54,6 @@ export default function Login({ navigation }) {
           } else if (role === "teacher") {
             navigation.navigate("TeacherHome");
           } else {
-            // if role is invalid
             setErrorMessage("Email and password don’t match.");
             setHasError(true);
           }
@@ -100,6 +108,7 @@ export default function Login({ navigation }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
