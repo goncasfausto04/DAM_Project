@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,50 +6,46 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  Switch,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker"; // Correct import for Picker
+import { Picker } from "@react-native-picker/picker";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "./firebase";
 
 export default function CreateClass() {
   const [subject, setSubject] = useState("");
-  const [selectedDays, setSelectedDays] = useState([]);
-  const [timesPerDay, setTimesPerDay] = useState({
-    Mon: "",
-    Tue: "",
-    Wed: "",
-    Thu: "",
-    Fri: "",
-    Sat: "",
-    Sun: "",
-  });
-  const [isExtra, setIsExtra] = useState(false);
-  const [teacher, setTeacher] = useState("");
+  const [teachers, setTeachers] = useState([]);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [studentName, setStudentName] = useState("");
   const [students, setStudents] = useState([]);
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [selectedTimes, setSelectedTimes] = useState([]);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
 
-  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const availableTimes = [
-    "08:00 AM",
-    "10:00 AM",
-    "12:00 PM",
-    "02:00 PM",
-    "04:00 PM",
-    "06:00 PM",
-  ];
+  useEffect(() => {
+    fetchTeachers();
+  }, []);
 
-  const toggleDay = (day) => {
-    if (selectedDays.includes(day)) {
-      setSelectedDays(selectedDays.filter((d) => d !== day));
-    } else {
-      setSelectedDays([...selectedDays, day]);
+  const fetchTeachers = async () => {
+    try {
+      const q = query(collection(db, "users"), where("role", "==", "teacher"));
+      const querySnapshot = await getDocs(q);
+      const teachersList = [];
+      querySnapshot.forEach((doc) => {
+        teachersList.push({ id: doc.id, ...doc.data() });
+      });
+      setTeachers(teachersList);
+    } catch (error) {
+      console.error("Error fetching teachers: ", error);
     }
-  };
-
-  const handleTimeChange = (day, time) => {
-    setTimesPerDay({
-      ...timesPerDay,
-      [day]: time,
-    });
   };
 
   const handleAddStudent = () => {
@@ -59,10 +55,50 @@ export default function CreateClass() {
     }
   };
 
-  const handleSubmit = () => {
-    if (subject && selectedDays.length > 0 && teacher && students.length > 0) {
-      alert(`Class Created ✅\nExtra Class: ${isExtra ? "Yes" : "No"}`);
-      // Later you'll send this data to backend
+  const handleConfirmDate = (date) => {
+    const dateString = date.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+    if (!selectedDates.includes(dateString)) {
+      setSelectedDates([...selectedDates, dateString]);
+    }
+    setDatePickerVisibility(false);
+  };
+
+  const handleConfirmTime = (time) => {
+    const timeString = time.toTimeString().split(" ")[0].slice(0, 5); // Format: HH:MM
+    setSelectedTimes([...selectedTimes, timeString]);
+    setTimePickerVisibility(false);
+  };
+
+  const handleSubmit = async () => {
+    if (
+      subject &&
+      selectedDates.length > 0 &&
+      selectedTeacher &&
+      students.length > 0
+    ) {
+      try {
+        await addDoc(collection(db, "classes"), {
+          subject,
+          teacherId: selectedTeacher.id,
+          teacherName: selectedTeacher.fullName,
+          dates: selectedDates,
+          times: selectedTimes, // Save selected times
+          students,
+          createdAt: serverTimestamp(),
+        });
+
+        alert("Class Created ✅");
+
+        // Reset
+        setSubject("");
+        setSelectedTeacher(null);
+        setStudents([]);
+        setSelectedDates([]);
+        setSelectedTimes([]); // Reset times as well
+      } catch (error) {
+        console.error("Error creating class: ", error);
+        alert("Failed to create class ❗");
+      }
     } else {
       alert("Please fill all fields and add at least one student ❗");
     }
@@ -80,63 +116,70 @@ export default function CreateClass() {
         onChangeText={setSubject}
       />
 
-      {/* Days Selector */}
-      <Text style={styles.label}>Select Days:</Text>
-      <View style={styles.daysContainer}>
-        {daysOfWeek.map((day) => (
-          <TouchableOpacity
-            key={day}
-            style={[
-              styles.dayButton,
-              selectedDays.includes(day) && styles.dayButtonSelected,
-            ]}
-            onPress={() => toggleDay(day)}
-          >
-            <Text
-              style={[
-                styles.dayButtonText,
-                selectedDays.includes(day) && styles.dayButtonTextSelected,
-              ]}
-            >
-              {day}
-            </Text>
-          </TouchableOpacity>
+      {/* Teacher Picker */}
+      <Text style={styles.label}>Assign Teacher:</Text>
+      <Picker
+        selectedValue={selectedTeacher ? selectedTeacher.id : null}
+        style={styles.picker}
+        onValueChange={(itemValue) => {
+          const teacher = teachers.find((t) => t.id === itemValue);
+          setSelectedTeacher(teacher);
+        }}
+      >
+        <Picker.Item label="Select a teacher" value={null} />
+        {teachers.map((teacher) => (
+          <Picker.Item
+            key={teacher.id}
+            label={teacher.fullName} // Display teacher's full name
+            value={teacher.id}
+          />
         ))}
-      </View>
+      </Picker>
 
-      {/* Time Selectors for each selected day */}
-      {selectedDays.map((day) => (
-        <View key={day} style={styles.timeSelectorContainer}>
-          <Text style={styles.dayLabel}>{day}:</Text>
-          <Picker
-            selectedValue={timesPerDay[day]}
-            style={styles.picker}
-            onValueChange={(itemValue) => handleTimeChange(day, itemValue)}
-          >
-            {availableTimes.map((time) => (
-              <Picker.Item key={time} label={time} value={time} />
-            ))}
-          </Picker>
-        </View>
+      {/* Date Picker */}
+      <TouchableOpacity
+        style={styles.dateButton}
+        onPress={() => setDatePickerVisibility(true)}
+      >
+        <Text style={styles.dateButtonText}>➕ Add Class Date</Text>
+      </TouchableOpacity>
+
+      {/* Show Selected Dates */}
+      {selectedDates.map((date, index) => (
+        <Text key={index} style={styles.dateItem}>
+          📅 {date}
+        </Text>
       ))}
 
-      {/* Extra Class Toggle */}
-      <View style={styles.extraContainer}>
-        <Text style={styles.label}>Mark as Extra Class</Text>
-        <Switch
-          value={isExtra}
-          onValueChange={setIsExtra}
-          trackColor={{ false: "#ccc", true: "#4CAF50" }}
-          thumbColor={isExtra ? "#fff" : "#fff"}
-        />
-      </View>
+      {/* Time Picker */}
+      <TouchableOpacity
+        style={styles.dateButton}
+        onPress={() => setTimePickerVisibility(true)}
+      >
+        <Text style={styles.dateButtonText}>➕ Add Class Time</Text>
+      </TouchableOpacity>
 
-      {/* Teacher */}
-      <TextInput
-        style={styles.input}
-        placeholder="Assign Teacher (e.g., Mr. Smith)"
-        value={teacher}
-        onChangeText={setTeacher}
+      {/* Show Selected Times */}
+      {selectedTimes.map((time, index) => (
+        <Text key={index} style={styles.dateItem}>
+          ⏰ {time}
+        </Text>
+      ))}
+
+      {/* Date Picker Modal */}
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleConfirmDate}
+        onCancel={() => setDatePickerVisibility(false)}
+      />
+
+      {/* Time Picker Modal */}
+      <DateTimePickerModal
+        isVisible={isTimePickerVisible}
+        mode="time"
+        onConfirm={handleConfirmTime}
+        onCancel={() => setTimePickerVisibility(false)}
       />
 
       {/* Add Students */}
@@ -152,7 +195,7 @@ export default function CreateClass() {
         </TouchableOpacity>
       </View>
 
-      {/* Show list of added students */}
+      {/* List Students */}
       <FlatList
         data={students}
         keyExtractor={(item, index) => index.toString()}
@@ -162,7 +205,7 @@ export default function CreateClass() {
         style={{ marginVertical: 10, width: "100%" }}
       />
 
-      {/* Submit Button */}
+      {/* Submit */}
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
         <Text style={styles.submitButtonText}>Create Class</Text>
       </TouchableOpacity>
@@ -196,50 +239,26 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     backgroundColor: "#FFF",
   },
-  daysContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 15,
-  },
-  dayButton: {
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    margin: 5,
-  },
-  dayButtonSelected: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
-  },
-  dayButtonText: {
-    color: "#333",
-  },
-  dayButtonTextSelected: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  timeSelectorContainer: {
-    marginVertical: 5,
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   picker: {
     height: 50,
-    width: "70%",
-    borderColor: "#E0E0E0",
-    borderWidth: 1,
-    borderRadius: 10,
-    backgroundColor: "#FFF",
-    marginLeft: 10,
-  },
-  extraContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    width: "100%",
     marginBottom: 15,
-    justifyContent: "space-between",
+  },
+  dateButton: {
+    backgroundColor: "#4CAF50",
+    padding: 15,
+    borderRadius: 15,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  dateButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  dateItem: {
+    fontSize: 16,
+    marginBottom: 5,
   },
   addStudentContainer: {
     flexDirection: "row",
