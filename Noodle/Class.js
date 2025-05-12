@@ -7,22 +7,24 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  Keyboard,
 } from "react-native";
-import { db } from "./firebase"; // Firebase database import
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore"; // Firebase methods
+import { db } from "./firebase";
+import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 
 export default function Class({ route, navigation }) {
-  const { classId } = route.params; // Get classId from navigation params
+  const { classId } = route.params;
   const [classData, setClassData] = useState(null);
   const [students, setStudents] = useState([]);
   const [subject, setSubject] = useState("");
   const [dates, setDates] = useState([]);
   const [times, setTimes] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [selectedDate, setSelectedDate] = useState("");
 
   useEffect(() => {
     fetchClassData();
-  }, [classId]); // Fetch data when classId changes
+  }, [classId]);
 
   const fetchClassData = async () => {
     try {
@@ -37,21 +39,37 @@ export default function Class({ route, navigation }) {
         setTimes(data.times || []);
         setStudents(data.students || []);
 
-        // Initialize attendance as all missing if students exist
-        const initialAttendance =
-          data.students && data.students.length > 0
-            ? data.students.reduce((acc, student) => {
-                acc[student] = "missing";
-                return acc;
-              }, {})
-            : {};
-        setAttendance(initialAttendance);
+        const initialDate = data.dates[0] || "";
+        setSelectedDate(initialDate);
+
+        // ✅ Fixed: load attendance with fresh data directly
+        loadAttendanceForDate(initialDate, data);
       } else {
         console.error("Class not found!");
       }
     } catch (error) {
       console.error("Error fetching class data: ", error);
     }
+  };
+
+  const loadAttendanceForDate = (date, data = classData) => {
+    if (!date) return;
+
+    const attendanceRecords = data.attendanceRecords || {};
+    const recordForDate = attendanceRecords[date] || {};
+
+    // ✅ Fixed: use data.students directly to avoid empty list issues
+    const newAttendance = (data.students || []).reduce((acc, student) => {
+      acc[student] = recordForDate[student] || "missing";
+      return acc;
+    }, {});
+
+    setAttendance(newAttendance);
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    loadAttendanceForDate(date);
   };
 
   const handleAttendanceChange = (student) => {
@@ -62,15 +80,33 @@ export default function Class({ route, navigation }) {
   };
 
   const handleSaveChanges = async () => {
+    Keyboard.dismiss();
+
+    if (!selectedDate) {
+      alert("Please select a date first!");
+      return;
+    }
+
     try {
       const classDocRef = doc(db, "classes", classId);
+      const classDocSnap = await getDoc(classDocRef);
+      let currentData = classDocSnap.exists() ? classDocSnap.data() : {};
+
+      let updatedAttendanceRecords = currentData.attendanceRecords || {};
+      updatedAttendanceRecords = {
+        ...updatedAttendanceRecords,
+        [selectedDate]: attendance,
+      };
+
       await updateDoc(classDocRef, {
         subject,
         dates,
         times,
-        attendance,
+        students,
+        attendanceRecords: updatedAttendanceRecords,
       });
-      alert("Class updated successfully!");
+
+      alert("Class and attendance updated successfully!");
     } catch (error) {
       console.error("Error updating class: ", error.message);
       alert("Failed to update class!");
@@ -79,10 +115,7 @@ export default function Class({ route, navigation }) {
 
   const handleDeleteClass = async () => {
     Alert.alert("Delete Class", "Are you sure you want to delete this class?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
+      { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         onPress: async () => {
@@ -90,7 +123,7 @@ export default function Class({ route, navigation }) {
             const classDocRef = doc(db, "classes", classId);
             await deleteDoc(classDocRef);
             alert("Class deleted successfully!");
-            navigation.goBack(); // Go back to the previous screen after deletion
+            navigation.goBack();
           } catch (error) {
             console.error("Error deleting class: ", error.message);
             alert("Failed to delete class!");
@@ -102,22 +135,19 @@ export default function Class({ route, navigation }) {
   };
 
   const renderStudent = ({ item }) => {
-    const status = attendance[item];
+    const isPresent = attendance[item] === "present";
     return (
-      <View style={styles.attendanceItem}>
-        <Text style={styles.attendanceText}>{item}</Text>
-        <TouchableOpacity
-          style={[
-            styles.attendanceButton,
-            { backgroundColor: status === "present" ? "#4CAF50" : "#FF5722" },
-          ]}
-          onPress={() => handleAttendanceChange(item)}
+      <TouchableOpacity
+        style={styles.studentItem}
+        onPress={() => handleAttendanceChange(item)}
+      >
+        <Text style={styles.studentText}>{item}</Text>
+        <Text
+          style={[styles.checkmark, { color: isPresent ? "green" : "red" }]}
         >
-          <Text style={styles.attendanceButtonText}>
-            {status === "present" ? "Present" : "Missing"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          {isPresent ? "✅" : "❌"}
+        </Text>
+      </TouchableOpacity>
     );
   };
 
@@ -132,13 +162,28 @@ export default function Class({ route, navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{classData.subject} Class</Text>
-
-      {/* Class Information */}
       <Text style={styles.classInfo}>🗓️ Dates: {dates.join(", ")}</Text>
       <Text style={styles.classInfo}>⏰ Times: {times.join(", ")}</Text>
 
-      {/* Attendance */}
-      <Text style={styles.sectionTitle}>Attendance</Text>
+      <View style={styles.datePicker}>
+        {dates.map((date) => (
+          <TouchableOpacity
+            key={date}
+            style={[
+              styles.dateButton,
+              {
+                backgroundColor: selectedDate === date ? "#2196F3" : "#E0E0E0",
+              },
+            ]}
+            onPress={() => handleDateSelect(date)}
+          >
+            <Text style={{ color: selectedDate === date ? "#FFF" : "#000" }}>
+              {date}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
         data={students}
         keyExtractor={(item, index) => index.toString()}
@@ -146,7 +191,6 @@ export default function Class({ route, navigation }) {
         style={styles.list}
       />
 
-      {/* Edit Subject */}
       <TextInput
         style={styles.input}
         placeholder="Edit Subject"
@@ -154,12 +198,10 @@ export default function Class({ route, navigation }) {
         onChangeText={setSubject}
       />
 
-      {/* Save Changes Button */}
       <TouchableOpacity style={styles.button} onPress={handleSaveChanges}>
         <Text style={styles.buttonText}>Save Changes</Text>
       </TouchableOpacity>
 
-      {/* Delete Class Button */}
       <TouchableOpacity
         style={[styles.button, { backgroundColor: "#F44336" }]}
         onPress={handleDeleteClass}
@@ -171,46 +213,12 @@ export default function Class({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9F9F9",
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  classInfo: {
-    fontSize: 16,
-    marginVertical: 5,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 20,
-  },
-  attendanceItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  attendanceText: {
-    fontSize: 16,
-    flex: 1,
-  },
-  attendanceButton: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-  },
-  attendanceButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-  },
-  list: {
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: "#F9F9F9", padding: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  classInfo: { fontSize: 16, marginVertical: 5 },
+  datePicker: { flexDirection: "row", flexWrap: "wrap", marginVertical: 10 },
+  dateButton: { padding: 10, borderRadius: 10, margin: 5 },
+  list: { marginBottom: 20 },
   input: {
     width: "100%",
     height: 50,
@@ -228,8 +236,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  buttonText: {
-    color: "#FFF",
-    fontWeight: "bold",
+  buttonText: { color: "#FFF", fontWeight: "bold" },
+  studentItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomColor: "#E0E0E0",
+    borderBottomWidth: 1,
   },
+  studentText: { fontSize: 16 },
+  checkmark: { fontSize: 20 },
 });
