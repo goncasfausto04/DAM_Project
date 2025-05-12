@@ -10,7 +10,13 @@ import {
   Keyboard,
 } from "react-native";
 import { db } from "./firebase";
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from "firebase/firestore"; // Make sure to import Firestore methods correctly
 
 export default function Class({ route, navigation }) {
   const { classId } = route.params;
@@ -23,14 +29,14 @@ export default function Class({ route, navigation }) {
   const [selectedDate, setSelectedDate] = useState("");
 
   useEffect(() => {
-    fetchClassData();
+    const unsubscribe = fetchClassData();
+    return () => unsubscribe(); // Clean up listener on unmount
   }, [classId]);
 
-  const fetchClassData = async () => {
-    try {
-      const classDocRef = doc(db, "classes", classId);
-      const classDocSnap = await getDoc(classDocRef);
-
+  const fetchClassData = () => {
+    const classDocRef = doc(db, "classes", classId);
+    // Use onSnapshot to listen to real-time updates
+    const unsubscribe = onSnapshot(classDocRef, (classDocSnap) => {
       if (classDocSnap.exists()) {
         const data = classDocSnap.data();
         setClassData(data);
@@ -38,18 +44,17 @@ export default function Class({ route, navigation }) {
         setDates(data.dates || []);
         setTimes(data.times || []);
         setStudents(data.students || []);
-
         const initialDate = data.dates[0] || "";
         setSelectedDate(initialDate);
 
-        // ✅ Fixed: load attendance with fresh data directly
+        // Load attendance for the selected date
         loadAttendanceForDate(initialDate, data);
       } else {
         console.error("Class not found!");
       }
-    } catch (error) {
-      console.error("Error fetching class data: ", error);
-    }
+    });
+
+    return unsubscribe;
   };
 
   const loadAttendanceForDate = (date, data = classData) => {
@@ -58,7 +63,7 @@ export default function Class({ route, navigation }) {
     const attendanceRecords = data.attendanceRecords || {};
     const recordForDate = attendanceRecords[date] || {};
 
-    // ✅ Fixed: use data.students directly to avoid empty list issues
+    // Set attendance for each student, defaulting to "missing"
     const newAttendance = (data.students || []).reduce((acc, student) => {
       acc[student] = recordForDate[student] || "missing";
       return acc;
@@ -89,7 +94,7 @@ export default function Class({ route, navigation }) {
 
     try {
       const classDocRef = doc(db, "classes", classId);
-      const classDocSnap = await getDoc(classDocRef);
+      const classDocSnap = await getDoc(classDocRef); // Corrected method for Firebase v9
       let currentData = classDocSnap.exists() ? classDocSnap.data() : {};
 
       let updatedAttendanceRecords = currentData.attendanceRecords || {};

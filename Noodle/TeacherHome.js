@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase"; // import your firebase config
 import { getAuth } from "firebase/auth"; // Import Firebase Authentication
 
@@ -25,7 +25,8 @@ export default function TeacherHome({ navigation }) {
     }
   }, []);
 
-  const fetchClasses = async (teacherId) => {
+  // Use onSnapshot to listen for changes in real-time
+  const fetchClasses = (teacherId) => {
     try {
       // Check if teacherId is set before querying
       if (!teacherId) {
@@ -39,16 +40,20 @@ export default function TeacherHome({ navigation }) {
       );
       console.log("Firestore Query:", q); // Log the query
 
-      const querySnapshot = await getDocs(q);
-      const classesList = [];
+      // Real-time listener for class data
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const classesList = [];
+        querySnapshot.forEach((doc) => {
+          console.log("Fetched Class:", doc.data()); // Log each fetched class
+          classesList.push({ id: doc.id, ...doc.data() });
+        });
 
-      querySnapshot.forEach((doc) => {
-        console.log("Fetched Class:", doc.data()); // Log each fetched class
-        classesList.push({ id: doc.id, ...doc.data() });
+        console.log("Fetched Classes:", classesList);
+        setClasses(classesList); // Set the classes state
       });
 
-      console.log("Fetched Classes:", classesList);
-      setClasses(classesList); // Set the classes state
+      // Cleanup listener on component unmount
+      return unsubscribe;
     } catch (error) {
       console.error("Error fetching classes: ", error);
     }
