@@ -6,53 +6,69 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { db } from "./firebase"; // import your firebase config
-import { getAuth } from "firebase/auth"; // Import Firebase Authentication
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { db } from "./firebase";
+import { getAuth } from "firebase/auth";
 
 export default function TeacherHome({ navigation }) {
   const [classes, setClasses] = useState([]);
-  const [teacherId, setTeacherId] = useState(null);
+  const [teacherName, setTeacherName] = useState("Teacher");
 
   useEffect(() => {
-    const auth = getAuth(); // Initialize Firebase Authentication
-    const user = auth.currentUser; // Get the currently logged-in user
+    const auth = getAuth();
+    const user = auth.currentUser;
     if (user) {
-      setTeacherId(user.uid); // Set the teacherId to the current user's ID
-      fetchClasses(user.uid); // Fetch classes for the logged-in teacher
+      fetchUserDetails(user.uid);
+      fetchClasses(user.uid);
     } else {
       console.error("No user is logged in.");
     }
   }, []);
 
-  // Use onSnapshot to listen for changes in real-time
+  const fetchUserDetails = async (uid) => {
+    try {
+      const userDocRef = doc(db, "users", uid);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        setTeacherName(userData.fullName || "Teacher");
+      } else {
+        console.error("User data not found!");
+      }
+    } catch (error) {
+      console.error("Error fetching user details: ", error);
+    }
+  };
+
+  const getFormattedDate = () => {
+  const today = new Date();
+  return today.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+};
+
   const fetchClasses = (teacherId) => {
     try {
-      // Check if teacherId is set before querying
-      if (!teacherId) {
-        console.error("No teacher ID available.");
-        return;
-      }
-
       const q = query(
         collection(db, "classes"),
         where("teacherId", "==", teacherId)
       );
-      console.log("Firestore Query:", q); // Log the query
-
-      // Real-time listener for class data
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const classesList = [];
         querySnapshot.forEach((doc) => {
-          console.log("Fetched Class:", doc.data()); // Log each fetched class
           classesList.push({ id: doc.id, ...doc.data() });
         });
-
-        console.log("Fetched Classes:", classesList);
-        setClasses(classesList); // Set the classes state
+        setClasses(classesList);
       });
-
-      // Cleanup listener on component unmount
       return unsubscribe;
     } catch (error) {
       console.error("Error fetching classes: ", error);
@@ -76,9 +92,11 @@ export default function TeacherHome({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome, Teacher 👋</Text>
+      <Text style={styles.dateText}>📅 {getFormattedDate()}</Text>
+      <Text style={styles.title}>Welcome, {teacherName} 👋</Text>
+  
       {classes.length === 0 ? (
-        <Text>No classes assigned yet.</Text>
+        <Text style={styles.noClasses}>No classes assigned yet.</Text>
       ) : (
         <FlatList
           data={classes}
@@ -89,18 +107,30 @@ export default function TeacherHome({ navigation }) {
       )}
     </View>
   );
-}
+}  
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F9F9",
+    backgroundColor: "#F4F6F8",
     padding: 20,
   },
+  dateText: {
+    fontSize: 16,
+    color: "#777",
+    marginBottom: 5,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
+    color: "#333",
     marginBottom: 20,
+  },
+  noClasses: {
+    fontSize: 16,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 50,
   },
   list: {
     paddingBottom: 20,
@@ -108,31 +138,34 @@ const styles = StyleSheet.create({
   classItem: {
     backgroundColor: "#FFF",
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 20,
     marginBottom: 15,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 10,
     elevation: 3,
   },
   classTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "600",
+    marginBottom: 5,
   },
   classInfo: {
     fontSize: 14,
     color: "#555",
-    marginVertical: 5,
   },
   button: {
     backgroundColor: "#4CAF50",
-    padding: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 15,
   },
   buttonText: {
     color: "#FFF",
     fontWeight: "bold",
+    fontSize: 14,
   },
 });
+

@@ -8,6 +8,10 @@ import {
   TextInput,
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { db } from "./firebase";
 import {
@@ -16,7 +20,7 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
-} from "firebase/firestore"; // Make sure to import Firestore methods correctly
+} from "firebase/firestore";
 
 export default function Class({ route, navigation }) {
   const { classId } = route.params;
@@ -30,12 +34,11 @@ export default function Class({ route, navigation }) {
 
   useEffect(() => {
     const unsubscribe = fetchClassData();
-    return () => unsubscribe(); // Clean up listener on unmount
+    return () => unsubscribe();
   }, [classId]);
 
   const fetchClassData = () => {
     const classDocRef = doc(db, "classes", classId);
-    // Use onSnapshot to listen to real-time updates
     const unsubscribe = onSnapshot(classDocRef, (classDocSnap) => {
       if (classDocSnap.exists()) {
         const data = classDocSnap.data();
@@ -46,29 +49,22 @@ export default function Class({ route, navigation }) {
         setStudents(data.students || []);
         const initialDate = data.dates[0] || "";
         setSelectedDate(initialDate);
-
-        // Load attendance for the selected date
         loadAttendanceForDate(initialDate, data);
       } else {
         console.error("Class not found!");
       }
     });
-
     return unsubscribe;
   };
 
   const loadAttendanceForDate = (date, data = classData) => {
     if (!date) return;
-
     const attendanceRecords = data.attendanceRecords || {};
     const recordForDate = attendanceRecords[date] || {};
-
-    // Set attendance for each student, defaulting to "missing"
     const newAttendance = (data.students || []).reduce((acc, student) => {
       acc[student] = recordForDate[student] || "missing";
       return acc;
     }, {});
-
     setAttendance(newAttendance);
   };
 
@@ -86,23 +82,19 @@ export default function Class({ route, navigation }) {
 
   const handleSaveChanges = async () => {
     Keyboard.dismiss();
-
     if (!selectedDate) {
       alert("Please select a date first!");
       return;
     }
-
     try {
       const classDocRef = doc(db, "classes", classId);
-      const classDocSnap = await getDoc(classDocRef); // Corrected method for Firebase v9
+      const classDocSnap = await getDoc(classDocRef);
       let currentData = classDocSnap.exists() ? classDocSnap.data() : {};
-
       let updatedAttendanceRecords = currentData.attendanceRecords || {};
       updatedAttendanceRecords = {
         ...updatedAttendanceRecords,
         [selectedDate]: attendance,
       };
-
       await updateDoc(classDocRef, {
         subject,
         dates,
@@ -110,7 +102,6 @@ export default function Class({ route, navigation }) {
         students,
         attendanceRecords: updatedAttendanceRecords,
       });
-
       alert("Class and attendance updated successfully!");
     } catch (error) {
       console.error("Error updating class: ", error.message);
@@ -165,60 +156,75 @@ export default function Class({ route, navigation }) {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{classData.subject} Class</Text>
-      <Text style={styles.classInfo}>🗓️ Dates: {dates.join(", ")}</Text>
-      <Text style={styles.classInfo}>⏰ Times: {times.join(", ")}</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={100}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>{classData.subject} Class</Text>
+          <Text style={styles.classInfo}>🗓️ Dates: {dates.join(", ")}</Text>
+          <Text style={styles.classInfo}>⏰ Times: {times.join(", ")}</Text>
 
-      <View style={styles.datePicker}>
-        {dates.map((date) => (
-          <TouchableOpacity
-            key={date}
-            style={[
-              styles.dateButton,
-              {
-                backgroundColor: selectedDate === date ? "#2196F3" : "#E0E0E0",
-              },
-            ]}
-            onPress={() => handleDateSelect(date)}
-          >
-            <Text style={{ color: selectedDate === date ? "#FFF" : "#000" }}>
-              {date}
-            </Text>
+          <View style={styles.datePicker}>
+            {dates.map((date) => (
+              <TouchableOpacity
+                key={date}
+                style={[
+                  styles.dateButton,
+                  {
+                    backgroundColor:
+                      selectedDate === date ? "#2196F3" : "#E0E0E0",
+                  },
+                ]}
+                onPress={() => handleDateSelect(date)}
+              >
+                <Text
+                  style={{ color: selectedDate === date ? "#FFF" : "#000" }}
+                >
+                  {date}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <FlatList
+            data={students}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={renderStudent}
+            style={styles.list}
+            scrollEnabled={false}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Edit Subject"
+            value={subject}
+            onChangeText={setSubject}
+          />
+
+          <TouchableOpacity style={styles.button} onPress={handleSaveChanges}>
+            <Text style={styles.buttonText}>Save Changes</Text>
           </TouchableOpacity>
-        ))}
-      </View>
 
-      <FlatList
-        data={students}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderStudent}
-        style={styles.list}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Edit Subject"
-        value={subject}
-        onChangeText={setSubject}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleSaveChanges}>
-        <Text style={styles.buttonText}>Save Changes</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: "#F44336" }]}
-        onPress={handleDeleteClass}
-      >
-        <Text style={styles.buttonText}>Delete Class</Text>
-      </TouchableOpacity>
-    </View>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: "#F44336" }]}
+            onPress={handleDeleteClass}
+          >
+            <Text style={styles.buttonText}>Delete Class</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9F9F9", padding: 20 },
+  container: { flexGrow: 1, backgroundColor: "#F9F9F9", padding: 20 },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
   classInfo: { fontSize: 16, marginVertical: 5 },
   datePicker: { flexDirection: "row", flexWrap: "wrap", marginVertical: 10 },
