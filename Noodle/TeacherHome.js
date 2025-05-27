@@ -18,7 +18,7 @@ import { db } from "./firebase";
 import { getAuth } from "firebase/auth";
 
 export default function TeacherHome({ navigation }) {
-  const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [teacherName, setTeacherName] = useState("Teacher");
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function TeacherHome({ navigation }) {
     const user = auth.currentUser;
     if (user) {
       fetchUserDetails(user.uid);
-      fetchClasses(user.uid);
+      fetchSubjects(user.uid);
     } else {
       console.error("No user is logged in.");
     }
@@ -48,58 +48,55 @@ export default function TeacherHome({ navigation }) {
   };
 
   const getFormattedDate = () => {
-  const today = new Date();
-  return today.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-};
+    const today = new Date();
+    return today.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
-  const fetchClasses = (teacherId) => {
+  const fetchSubjects = (teacherId) => {
     try {
       const q = query(
-        collection(db, "classes"),
+        collection(db, "subjects"),
         where("teacherId", "==", teacherId)
       );
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const classesList = [];
+        const subjectList = [];
         querySnapshot.forEach((doc) => {
-          classesList.push({ id: doc.id, ...doc.data() });
+          subjectList.push({ id: doc.id, ...doc.data() });
         });
-        setClasses(classesList);
+        setSubjects(subjectList);
       });
       return unsubscribe;
     } catch (error) {
-      console.error("Error fetching classes: ", error);
+      console.error("Error fetching subjects: ", error);
     }
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.classItem}>
-      <Text style={styles.classTitle}>📚 {item.subject} Class</Text>
-      <Text style={styles.classInfo}>
-        🗓️ {item.dates.join(", ")} - ⏰ {item.times.join(", ")}
-      </Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("Class", { classId: item.id })}
-      >
-        <Text style={styles.buttonText}>Enter Class</Text>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity
+      style={styles.subjectItem}
+      onPress={() =>
+        navigation.navigate("SubjectDashboard", { subjectId: item.id })
+      }
+    >
+      <Text style={styles.subjectTitle}>📘 {item.name}</Text>
+      <Text style={styles.subjectTeacher}>👨‍🏫 {teacherName}</Text>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <Text style={styles.dateText}>📅 {getFormattedDate()}</Text>
       <Text style={styles.title}>Welcome, {teacherName} 👋</Text>
-  
-      {classes.length === 0 ? (
-        <Text style={styles.noClasses}>No classes assigned yet.</Text>
+
+      {subjects.length === 0 ? (
+        <Text style={styles.noSubjects}>No subjects assigned yet.</Text>
       ) : (
         <FlatList
-          data={classes}
+          data={subjects}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -107,7 +104,7 @@ export default function TeacherHome({ navigation }) {
       )}
     </View>
   );
-}  
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -126,7 +123,7 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 20,
   },
-  noClasses: {
+  noSubjects: {
     fontSize: 16,
     color: "#888",
     textAlign: "center",
@@ -135,7 +132,7 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: 20,
   },
-  classItem: {
+  subjectItem: {
     backgroundColor: "#FFF",
     padding: 20,
     borderRadius: 20,
@@ -146,26 +143,13 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
-  classTitle: {
+  subjectTitle: {
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 5,
   },
-  classInfo: {
+  subjectTeacher: {
     fontSize: 14,
     color: "#555",
   },
-  button: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 15,
-  },
-  buttonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
 });
-

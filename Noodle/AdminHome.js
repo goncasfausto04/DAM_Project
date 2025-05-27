@@ -6,12 +6,20 @@ export default function AdminHome({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Welcome, Admin 👑</Text>
 
-      {/* Create Class Button */}
+      {/* Create Subject Button */}
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate("CreateClass")}
+        onPress={() => navigation.navigate("CreateSubject")}
       >
-        <Text style={styles.buttonText}>Create Class</Text>
+        <Text style={styles.buttonText}>Create Subject</Text>
+      </TouchableOpacity>
+
+      {/* Edit Subjects / Manage Classes */}
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate("EditSubjects")}
+      >
+        <Text style={styles.buttonText}>Edit Subjects</Text>
       </TouchableOpacity>
 
       {/* Create Account Button */}
@@ -40,7 +48,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: "80%",
-    backgroundColor: "#2196F3", // Blue for admin buttons
+    backgroundColor: "#2196F3",
     padding: 15,
     borderRadius: 15,
     alignItems: "center",
