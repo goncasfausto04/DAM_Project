@@ -17,7 +17,8 @@ import {
 import { db } from "./firebase";
 import { getAuth } from "firebase/auth";
 
-export default function TeacherHome({ navigation }) {
+export default function TeacherHome({ navigation, route }) {
+  const { role } = route.params || {};
   const [subjects, setSubjects] = useState([]);
   const [teacherName, setTeacherName] = useState("Teacher");
 
@@ -79,7 +80,7 @@ export default function TeacherHome({ navigation }) {
     <TouchableOpacity
       style={styles.subjectItem}
       onPress={() =>
-        navigation.navigate("SubjectDashboard", { subjectId: item.id })
+        navigation.navigate("SubjectDetail", { subjectId: item.id, role })
       }
     >
       <Text style={styles.subjectTitle}>📘 {item.name}</Text>

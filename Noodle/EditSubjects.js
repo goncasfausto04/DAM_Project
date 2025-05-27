@@ -10,7 +10,9 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { useFocusEffect } from "@react-navigation/native";
 
-export default function EditSubjects({ navigation }) {
+export default function EditSubjects({ navigation, route }) {
+  const role = route.params?.role || "teacher";
+
   const [subjects, setSubjects] = useState([]);
 
   useFocusEffect(
@@ -36,7 +38,7 @@ export default function EditSubjects({ navigation }) {
     <TouchableOpacity
       style={styles.subjectItem}
       onPress={() =>
-        navigation.navigate("SubjectDetail", { subjectId: item.id })
+        navigation.navigate("SubjectDetail", { subjectId: item.id, role })
       }
     >
       <Text style={styles.subjectName}>{item.name}</Text>
@@ -51,8 +53,16 @@ export default function EditSubjects({ navigation }) {
         data={subjects}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 80 }} // give space for button
       />
+
+      {/* Floating Add Button */}
+      <TouchableOpacity
+        style={styles.floatingButton}
+        onPress={() => navigation.navigate("CreateSubject", { role })}
+      >
+        <Text style={styles.floatingButtonText}>＋</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -86,5 +96,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#555",
     marginTop: 5,
+  },
+  floatingButton: {
+    position: "absolute",
+    bottom: 30,
+    right: 30,
+    backgroundColor: "#4CAF50",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  floatingButtonText: {
+    color: "#FFF",
+    fontSize: 30,
+    lineHeight: 30,
   },
 });

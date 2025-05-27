@@ -6,28 +6,18 @@ export default function AdminHome({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Welcome, Admin 👑</Text>
 
-      {/* Create Subject Button */}
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate("CreateSubject")}
+        onPress={() => navigation.navigate("EditSubjects", { role: "admin" })}
       >
-        <Text style={styles.buttonText}>Create Subject</Text>
+        <Text style={styles.buttonText}>Manage Subjects</Text>
       </TouchableOpacity>
 
-      {/* Edit Subjects / Manage Classes */}
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("EditSubjects")}
-      >
-        <Text style={styles.buttonText}>Edit Subjects</Text>
-      </TouchableOpacity>
-
-      {/* Create Account Button */}
       <TouchableOpacity
         style={styles.button}
         onPress={() => navigation.navigate("CreateAccount")}
       >
-        <Text style={styles.buttonText}>Create Account</Text>
+        <Text style={styles.buttonText}>Create Teacher Account</Text>
       </TouchableOpacity>
     </View>
   );
@@ -42,21 +32,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 40,
+    marginBottom: 50,
+    color: "#222",
   },
   button: {
     width: "80%",
     backgroundColor: "#2196F3",
-    padding: 15,
-    borderRadius: 15,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: "center",
-    marginBottom: 20,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   buttonText: {
     color: "#FFF",
-    fontWeight: "bold",
+    fontWeight: "600",
     fontSize: 18,
   },
 });

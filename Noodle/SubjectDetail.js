@@ -20,7 +20,7 @@ import {
 import { db } from "./firebase";
 
 export default function SubjectDetail({ route, navigation }) {
-  const { subjectId } = route.params;
+  const { subjectId, role } = route.params;
   const [subject, setSubject] = useState(null);
   const [classes, setClasses] = useState([]);
   const [newStudent, setNewStudent] = useState("");
@@ -30,9 +30,7 @@ export default function SubjectDetail({ route, navigation }) {
   }, [subjectId]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
-      fetchSubjectAndClasses();
-    });
+    const unsubscribe = navigation.addListener("focus", fetchSubjectAndClasses);
     return unsubscribe;
   }, [navigation]);
 
@@ -40,10 +38,8 @@ export default function SubjectDetail({ route, navigation }) {
     try {
       const subjectRef = doc(db, "subjects", subjectId);
       const subjectSnap = await getDoc(subjectRef);
-
-      if (subjectSnap.exists()) {
+      if (subjectSnap.exists())
         setSubject({ id: subjectSnap.id, ...subjectSnap.data() });
-      }
 
       const q = query(collection(db, `subjects/${subjectId}/classes`));
       const querySnapshot = await getDocs(q);
@@ -51,7 +47,6 @@ export default function SubjectDetail({ route, navigation }) {
         id: doc.id,
         ...doc.data(),
       }));
-
       setClasses(classList);
     } catch (error) {
       console.error("Error loading subject/classes: ", error);
@@ -60,7 +55,6 @@ export default function SubjectDetail({ route, navigation }) {
 
   const handleAddStudent = async () => {
     if (!newStudent.trim()) return;
-
     try {
       const updatedStudents = [...(subject.students || []), newStudent.trim()];
       await updateDoc(doc(db, "subjects", subjectId), {
@@ -73,7 +67,7 @@ export default function SubjectDetail({ route, navigation }) {
     }
   };
 
-  const handleDeleteStudent = async (studentToDelete) => {
+  const handleDeleteStudent = (studentToDelete) => {
     Alert.alert(
       "Remove Student",
       `Are you sure you want to remove ${studentToDelete}?`,
@@ -85,7 +79,7 @@ export default function SubjectDetail({ route, navigation }) {
           onPress: async () => {
             try {
               const updatedStudents = (subject.students || []).filter(
-                (student) => student !== studentToDelete
+                (s) => s !== studentToDelete
               );
               await updateDoc(doc(db, "subjects", subjectId), {
                 students: updatedStudents,
@@ -118,7 +112,6 @@ export default function SubjectDetail({ route, navigation }) {
     ]);
   };
 
-  // NEW: Delete subject function
   const handleDeleteSubject = () => {
     Alert.alert(
       "Delete Subject",
@@ -144,17 +137,24 @@ export default function SubjectDetail({ route, navigation }) {
 
   const renderClassItem = ({ item }) => (
     <View style={styles.classItem}>
-      <Text>📅 Dates: {item.dates?.join(", ") || "No dates"}</Text>
-      <Text>⏰ Times: {item.times?.join(", ") || "No times"}</Text>
-      <Text>👥 Students: {item.students?.join(", ") || "No students"}</Text>
+      <Text style={styles.classText}>
+        📅 Dates: {item.dates?.join(", ") || "No dates"}
+      </Text>
+      <Text style={styles.classText}>
+        ⏰ Times: {item.times?.join(", ") || "No times"}
+      </Text>
+      <Text style={styles.classText}>
+        👥 Students: {item.students?.join(", ") || "No students"}
+      </Text>
 
-      <View style={{ flexDirection: "row", marginTop: 10 }}>
+      <View style={styles.classButtons}>
         <TouchableOpacity
           style={styles.editButton}
           onPress={() =>
             navigation.navigate("EditClass", {
               subjectId: subject.id,
               classId: item.id,
+              role,
             })
           }
         >
@@ -171,35 +171,35 @@ export default function SubjectDetail({ route, navigation }) {
     </View>
   );
 
-  if (!subject) return <Text>Loading...</Text>;
+  if (!subject) return <Text style={styles.loadingText}>Loading...</Text>;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Subject: {subject.name}</Text>
+      <Text style={styles.title}>{subject.name}</Text>
       <Text style={styles.subtitle}>👨‍🏫 {subject.teacherName}</Text>
 
-      {/* DELETE SUBJECT BUTTON */}
-      <TouchableOpacity
-        style={styles.deleteSubjectButton}
-        onPress={handleDeleteSubject}
-      >
-        <Text style={styles.deleteSubjectButtonText}>🗑️ Delete Subject</Text>
-      </TouchableOpacity>
+      {role === "admin" && (
+        <TouchableOpacity
+          style={styles.deleteSubjectButton}
+          onPress={handleDeleteSubject}
+        >
+          <Text style={styles.deleteSubjectButtonText}>🗑️ Delete Subject</Text>
+        </TouchableOpacity>
+      )}
 
-      {/* Add Student */}
       <View style={styles.addStudentContainer}>
         <TextInput
-          style={[styles.input, { flex: 1 }]}
+          style={styles.input}
           placeholder="Enter student name"
           value={newStudent}
           onChangeText={setNewStudent}
+          placeholderTextColor="#999"
         />
         <TouchableOpacity style={styles.addButton} onPress={handleAddStudent}>
-          <Text style={styles.addButtonText}>➕</Text>
+          <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Student List */}
       <FlatList
         data={subject.students || []}
         keyExtractor={(item, index) => index.toString()}
@@ -207,35 +207,35 @@ export default function SubjectDetail({ route, navigation }) {
           <View style={styles.studentRow}>
             <Text style={styles.studentItem}>👤 {item}</Text>
             <TouchableOpacity
-              style={styles.deleteButton}
+              style={styles.deleteButtonSmall}
               onPress={() => handleDeleteStudent(item)}
             >
               <Text style={styles.deleteButtonText}>Remove</Text>
             </TouchableOpacity>
           </View>
         )}
-        style={{ marginVertical: 10 }}
+        style={styles.studentsList}
       />
 
-      {/* Add Class Button */}
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() =>
-          navigation.navigate("CreateClass", {
-            subjectId: subject.id,
-            students: subject.students || [],
-          })
-        }
-      >
-        <Text style={styles.buttonText}>➕ Add Class</Text>
-      </TouchableOpacity>
+      {role === "admin" && (
+        <TouchableOpacity
+          style={styles.addClassButton}
+          onPress={() =>
+            navigation.navigate("CreateClass", {
+              subjectId: subject.id,
+              students: subject.students || [],
+            })
+          }
+        >
+          <Text style={styles.addClassButtonText}>+ Add Class</Text>
+        </TouchableOpacity>
+      )}
 
-      {/* Classes List */}
       <FlatList
         data={classes}
         keyExtractor={(item) => item.id}
         renderItem={renderClassItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
       />
     </View>
   );
@@ -244,103 +244,145 @@ export default function SubjectDetail({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#F9F9F9",
+    backgroundColor: "#FFF",
+    paddingHorizontal: 24,
+    paddingTop: 24,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 5,
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 6,
+    color: "#222",
   },
   subtitle: {
-    fontSize: 16,
-    marginBottom: 15,
-    color: "#555",
+    fontSize: 18,
+    color: "#666",
+    marginBottom: 18,
   },
   deleteSubjectButton: {
-    backgroundColor: "#f44336",
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: "#D32F2F",
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
-    marginVertical: 15,
+    marginBottom: 20,
   },
   deleteSubjectButtonText: {
     color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "700",
   },
   addStudentContainer: {
     flexDirection: "row",
+    marginBottom: 16,
+    borderRadius: 14,
+    backgroundColor: "#F0F0F0",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     alignItems: "center",
-    marginBottom: 10,
   },
   input: {
-    height: 50,
-    borderColor: "#E0E0E0",
-    borderWidth: 1,
-    borderRadius: 15,
-    paddingHorizontal: 15,
-    backgroundColor: "#FFF",
+    flex: 1,
+    height: 48,
+    fontSize: 16,
+    color: "#222",
   },
   addButton: {
     backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 15,
-    marginLeft: 10,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    marginLeft: 12,
   },
   addButtonText: {
+    fontSize: 24,
     color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "700",
+  },
+  studentsList: {
+    marginBottom: 20,
   },
   studentRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 5,
+    justifyContent: "space-between",
+    backgroundColor: "#FAFAFA",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   studentItem: {
     fontSize: 16,
+    color: "#444",
   },
-  deleteButton: {
-    backgroundColor: "#f44336",
-    padding: 8,
+  deleteButtonSmall: {
+    backgroundColor: "#E53935",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 10,
-    marginLeft: 10,
   },
   deleteButtonText: {
     color: "#FFF",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  addClassButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  addClassButtonText: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
   classItem: {
-    backgroundColor: "#FFF",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  classText: {
+    fontSize: 15,
+    color: "#555",
+    marginBottom: 6,
+  },
+  classButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 12,
   },
   editButton: {
     backgroundColor: "#2196F3",
-    padding: 10,
-    borderRadius: 10,
-    marginRight: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    marginRight: 12,
   },
   editButtonText: {
     color: "#FFF",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 15,
   },
-  button: {
-    backgroundColor: "#4CAF50",
-    padding: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 15,
+  deleteButton: {
+    backgroundColor: "#E53935",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
   },
-  buttonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
+  loadingText: {
+    marginTop: 40,
+    fontSize: 18,
+    textAlign: "center",
+    color: "#999",
   },
 });

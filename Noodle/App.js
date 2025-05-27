@@ -11,7 +11,6 @@ import CreateSubject from "./CreateSubject";
 import EditSubjects from "./EditSubjects";
 import SubjectDetail from "./SubjectDetail"; // Assuming this is the file for subject details
 import EditClass from "./EditClass"; // Assuming this is the file for editing class details
-import SubjectDashboard from "./SubjectDashboard"; // Import component properly
 
 const Stack = createStackNavigator();
 
@@ -32,7 +31,6 @@ export default function App() {
         <Stack.Screen name="EditSubjects" component={EditSubjects} />
         <Stack.Screen name="SubjectDetail" component={SubjectDetail} />
         <Stack.Screen name="EditClass" component={EditClass} />
-        <Stack.Screen name="SubjectDashboard" component={SubjectDashboard} />
       </Stack.Navigator>
     </NavigationContainer>
   );

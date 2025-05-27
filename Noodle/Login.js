@@ -50,7 +50,7 @@ export default function Login({ navigation }) {
           console.log("User role:", role);
 
           if (role === "admin") {
-            navigation.navigate("AdminHome");
+            navigation.navigate("AdminHome", {role});
           } else if (role === "teacher") {
             navigation.navigate("TeacherHome");
           } else {
