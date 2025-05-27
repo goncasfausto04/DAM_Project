@@ -8,8 +8,12 @@ import {
   Image,
 } from "react-native";
 import { auth, db } from "./firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import Toast from "react-native-toast-message";
 
 export default function Login({ navigation }) {
   const [email, setEmail] = useState("");
@@ -18,7 +22,6 @@ export default function Login({ navigation }) {
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    // Ensure Firebase Auth is initialized before login attempt
     if (auth) {
       console.log("Firebase Auth initialized successfully.");
     } else {
@@ -39,18 +42,14 @@ export default function Login({ navigation }) {
         );
         const user = userCredential.user;
 
-        console.log("User logged in:", user.uid);
-
         const userDoc = await getDoc(doc(db, "users", user.uid));
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const role = userData.role;
 
-          console.log("User role:", role);
-
           if (role === "admin") {
-            navigation.navigate("AdminHome", {role});
+            navigation.navigate("AdminHome", { role });
           } else if (role === "teacher") {
             navigation.navigate("TeacherHome");
           } else {
@@ -62,13 +61,38 @@ export default function Login({ navigation }) {
           setHasError(true);
         }
       } catch (error) {
-        console.error("Login error:", error.code);
         setErrorMessage("Email and password don’t match.");
         setHasError(true);
       }
     } else {
       setErrorMessage("Email and password don’t match.");
       setHasError(true);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMessage("Please enter your email to reset password.");
+      setHasError(true);
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Toast.show({
+        type: "success",
+        text1: "Reset email sent",
+        text2: "Check your inbox to reset your password.",
+      });
+      setErrorMessage("");
+      setHasError(false);
+    } catch (error) {
+      console.error("Reset password error:", error.code);
+      Toast.show({
+        type: "error",
+        text1: "Failed to send email",
+        text2: "Please check the email address.",
+      });
     }
   };
 
@@ -102,13 +126,12 @@ export default function Login({ navigation }) {
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => console.log("Forgot password tapped")}>
+      <TouchableOpacity onPress={handleForgotPassword}>
         <Text style={styles.forgot}>Forgot Password?</Text>
       </TouchableOpacity>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
