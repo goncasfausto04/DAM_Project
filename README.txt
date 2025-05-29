@@ -1,0 +1,1 @@
+This repository was used for the Mobile Applications Development class project.
