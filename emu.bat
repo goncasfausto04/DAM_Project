@@ -1,1 +1,0 @@
-"C:\Users\gonca\AppData\Local\Android\Sdk\emulator\emulator.exe" -avd telele
