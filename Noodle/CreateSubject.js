@@ -74,6 +74,7 @@ export default function CreateSubject({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Subject Name"
+        placeholderTextColor="#999"
         value={subjectName}
         onChangeText={setSubjectName}
       />

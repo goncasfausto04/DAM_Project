@@ -108,6 +108,7 @@ export default function Login({ navigation }) {
       <TextInput
         style={[styles.input, hasError && styles.inputError]}
         placeholder="Email"
+        placeholderTextColor="#999"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -115,8 +116,13 @@ export default function Login({ navigation }) {
       />
 
       <TextInput
-        style={[styles.input, hasError && styles.inputError]}
+        style={[
+          styles.input,
+          hasError && styles.inputError,
+          { color: "#000", fontFamily: undefined }, // ← THIS fixes it
+        ]}
         placeholder="Password"
+        placeholderTextColor="#999"
         value={password}
         onChangeText={setPassword}
         secureTextEntry

@@ -68,6 +68,7 @@ export default function CreateAccount({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Full Name"
+        placeholderTextColor="#999"
         value={name}
         onChangeText={setName}
       />
@@ -75,6 +76,7 @@ export default function CreateAccount({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor="#999"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -82,16 +84,18 @@ export default function CreateAccount({ navigation }) {
       />
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: "#000", fontFamily: undefined }]}
         placeholder="Password"
+        placeholderTextColor="#999"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: "#000", fontFamily: undefined }]}
         placeholder="Confirm Password"
+        placeholderTextColor="#999"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
