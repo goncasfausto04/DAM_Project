@@ -1,7 +1,7 @@
 This repository was used for the Mobile Applications Development class project.
-To run the app change directory to the Noodle folder on cmd
+To install just run the apk on an android device.
 
-cd Noodle
+To run the code change directory to the Noodle folder on cmd (cd path/to/Noodle) then:
 npm install (if needed)
 npx expo start
 
