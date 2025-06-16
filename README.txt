@@ -5,6 +5,8 @@ To run the code change directory to the Noodle folder on cmd (cd path/to/Noodle)
 npm install (if needed)
 npx expo start
 
+As firebase.js contains the key to the database all variables are redacted for safety purposes.
+
 Accounts for testing purposes:
 
 teste@gmail.com 123456
