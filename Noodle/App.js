@@ -1,7 +1,7 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import { View } from "react-native"; // ✅ Add this
+import { View } from "react-native";
 import Toast from "react-native-toast-message";
 
 import Login from "./Login";
